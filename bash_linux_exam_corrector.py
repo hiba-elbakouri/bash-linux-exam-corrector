@@ -19,7 +19,6 @@
 import concurrent
 import os
 import re
-import shutil
 import sys
 from pathlib import Path
 
@@ -28,10 +27,10 @@ from croniter import croniter
 from tabulate import tabulate
 
 from helpers import TarFileHelper, ProcessRunnerHelper, FileHelper
-from interfaces import Corrector
+from interfaces import ExamCorrector, ExamCorrectorBackend
 
 
-class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper, FileHelper):
+class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, FileHelper):
     _EXAM_FILES_EXTRACTION_TARGET_FOLDER = Path('extracted_exam_files')
 
     _CRON_FILE = 'cron.txt'
@@ -51,7 +50,8 @@ class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper, FileHelper):
     class ScriptFileNotFound(FileNotFoundError):
         pass
 
-    def __init__(self, candidates_exams_path: str, corrector: Corrector = None, correct_exam_path: str = None) -> None:
+    def __init__(self, candidates_exams_path: str, corrector: ExamCorrectorBackend = None,
+                 correct_exam_path: str = None) -> None:
         self.correct_exam_path = Path(correct_exam_path) if correct_exam_path else None
         self.candidates_exams_path = Path(candidates_exams_path)
         self.corrector = corrector
@@ -103,23 +103,57 @@ class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper, FileHelper):
 
     def _correct_cron_file(self, cron_file):
         self._clean_up_cron_file(cron_file)
-        with open(cron_file, 'r') as f:
-            lines = f.readlines()
-            if croniter.is_valid(lines[0]):
-                return True
-        return False
+        try:
+            with open(cron_file, 'r') as file:
+                for line_number, line in enumerate(file, start=1):
+
+                    # Split the line into fields (schedule and command)
+                    fields = line.strip().split(maxsplit=5)
+                    if len(fields) != 6:
+                        print(f"Error in line {line_number}: Invalid cron format")
+                        return False
+
+                    schedule = ' '.join(fields[:5])
+                    script_path = fields[5]
+
+                    # Validate the cron schedule
+                    try:
+                        croniter(schedule)
+                    except ValueError:
+                        print(f"Error in line {line_number}: Invalid cron schedule")
+                        return False
+
+                    # # Validate the script path
+                    # if not os.path.isfile(script_path):
+                    #     print(f"Error in line {line_number}: Script file not found")
+                    #     return False
+
+        except FileNotFoundError:
+            print(f"Error: File '{cron_file}' not found")
+            return False
+
+        return True
 
     def _correct_sales_file(self, sales_file):
         self._clean_up_ordinary_file(sales_file)
         # Define the regex pattern
-        pattern = self._OUTPUT_REGEX
-
-        # Read the content of the file
         with open(sales_file, 'r') as file:
             file_content = file.read()
-
-        # Check if the pattern matches the file content
-        if re.search(pattern, file_content):
+            # Define the regex pattern for a single occurrence
+            pattern = (r'\b\w{3} \w{3} \d{2} \d{2}:\d{2}:\d{2} UTC \d{4}\n(?:rtx3060: \d+\n|rtx3070: \d+\n|rtx3080: '
+                       r'\d+\n|rtx3090: \d+\n|rx6700: \d+\n)+')
+            # Find all occurrences of the pattern in the file content
+            matches = re.findall(pattern, file_content)
+            # Check if all GPU types appear in every occurrence
+            gpu_types = {'rtx3060', 'rtx3070', 'rtx3080', 'rtx3090', 'rx6700'}
+            for match in matches:
+                gpu_occurrences = re.findall(r'(rtx\d+|rx\d+): \d+', match)
+                matched_gpu_types = {
+                    gpu_occurrence.split(':')[0]
+                    for gpu_occurrence in gpu_occurrences
+                }
+                if not gpu_types.issubset(matched_gpu_types):
+                    return False
             return True
 
     def _correct_script_file(self, script_file):

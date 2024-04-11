@@ -16,8 +16,13 @@
 #    \ \_______\ \_______\ \__\\ _\\ \__\\ _\\ \_______\ \_______\  \ \__\ \ \_______\ \__\\ _\
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
+import shutil
 from abc import ABC
+from pathlib import Path
 
 
-class Corrector(ABC):
+class ExamCorrector(ABC):
+    pass
+
+class ExamCorrectorBackend(ABC):
     pass
