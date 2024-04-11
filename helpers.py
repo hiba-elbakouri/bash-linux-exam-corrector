@@ -16,6 +16,7 @@
 #    \ \_______\ \_______\ \__\\ _\\ \__\\ _\\ \_______\ \_______\  \ \__\ \ \_______\ \__\\ _\
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
+import re
 import subprocess
 import tarfile
 import time
@@ -39,6 +40,68 @@ class TarFileHelper:
             print("The file is not a valid tar file.")
         except Exception as e:
             print(f"An error occurred: {e}")
+
+
+class FileHelper:
+    _CRON_FILE_COMMENT_REGEX = r'^\s*#.*$'
+    _BASH_FILE_COMMENT_REGEX = r'^\s*#'
+
+    @staticmethod
+    def _remove_empty_lines(file_path):
+        try:
+            # Read the file
+            with open(file_path, 'r') as file:
+                lines = file.readlines()
+
+            # Remove empty lines
+            non_empty_lines = [line for line in lines if line.strip()]
+
+            # Write the non-empty lines back to the file
+            with open(file_path, 'w') as file:
+                file.writelines(non_empty_lines)
+
+            return True
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return False
+
+    @staticmethod
+    def _remove_comments_from_file_according_to_regex(file_path, regex):
+        try:
+            with open(file_path, 'r') as f:
+                lines = f.readlines()
+
+            # Regular expression to match comments in cron file
+            comment_pattern = re.compile(regex)
+
+            # Filter out lines that are not comments
+            lines = [line for line in lines if not comment_pattern.match(line)]
+
+            # Write the modified lines back to the file
+            with open(file_path, 'w') as f:
+                f.writelines(lines)
+
+            return True
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return False
+
+    def _remove_comments_from_bash_file(self, bash_file_path: Path):
+        return self._remove_comments_from_file_according_to_regex(bash_file_path, self._BASH_FILE_COMMENT_REGEX)
+
+    def _remove_comments_from_cron_file(self, cron_file_path: Path):
+        return self._remove_comments_from_file_according_to_regex(cron_file_path, self._CRON_FILE_COMMENT_REGEX)
+
+    def _clean_up_cron_file(self, cron_file_path: Path):
+        self._remove_empty_lines(cron_file_path)
+        self._remove_comments_from_cron_file(cron_file_path)
+
+    def _clean_up_bash_file(self, bash_file_path: Path):
+        self._remove_empty_lines(bash_file_path)
+        self._remove_comments_from_bash_file(bash_file_path)
+
+    def _clean_up_ordinary_file(self, ordinary_file_path: Path):
+        self._remove_empty_lines(ordinary_file_path)
 
 
 class ProcessRunnerHelper:

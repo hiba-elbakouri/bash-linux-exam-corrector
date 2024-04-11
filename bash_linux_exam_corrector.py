@@ -16,6 +16,7 @@
 #    \ \_______\ \_______\ \__\\ _\\ \__\\ _\\ \_______\ \_______\  \ \__\ \ \_______\ \__\\ _\
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
+import concurrent
 import os
 import re
 import shutil
@@ -26,11 +27,11 @@ import tqdm
 from croniter import croniter
 from tabulate import tabulate
 
-from helpers import TarFileHelper, ProcessRunnerHelper
+from helpers import TarFileHelper, ProcessRunnerHelper, FileHelper
 from interfaces import Corrector
 
 
-class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper):
+class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper, FileHelper):
     _EXAM_FILES_EXTRACTION_TARGET_FOLDER = Path('extracted_exam_files')
 
     _CRON_FILE = 'cron.txt'
@@ -101,6 +102,7 @@ class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper):
         return cron_file, script_file, sales_file
 
     def _correct_cron_file(self, cron_file):
+        self._clean_up_cron_file(cron_file)
         with open(cron_file, 'r') as f:
             lines = f.readlines()
             if croniter.is_valid(lines[0]):
@@ -108,6 +110,7 @@ class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper):
         return False
 
     def _correct_sales_file(self, sales_file):
+        self._clean_up_ordinary_file(sales_file)
         # Define the regex pattern
         pattern = self._OUTPUT_REGEX
 
@@ -120,6 +123,7 @@ class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper):
             return True
 
     def _correct_script_file(self, script_file):
+        self._clean_up_bash_file(script_file)
         return True
 
     def _clean_extracted_files(self):
@@ -152,7 +156,8 @@ class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper):
             'sales_incorrect': '- sales file is not correct'
         }
 
-        for candidate_folder_path in tqdm.tqdm(candidates_folders):
+        def process_candidate(candidate_folder_path):
+            candidate_result = {}
             candidate_name = self._fetch_candidate_name_from_folder_path(candidate_folder_path)
             description = ''
             try:
@@ -172,9 +177,18 @@ class BashLinuxExamCorrector(TarFileHelper, ProcessRunnerHelper):
                         description += error_description_map[check]
 
                 result = 'Failed' if any(file_checks.values()) else 'Passed'
-            candidates_result.append(
-                {'candidate_name': candidate_name, 'result': result, 'remarques supplémentaires': description})
 
+            candidate_result['candidate_name'] = candidate_name
+            candidate_result['result'] = result
+            candidate_result['remarques supplémentaires'] = description
+            return candidate_result
+
+        # TODO think about making all candidates files processing asynchronous
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = list(
+                tqdm.tqdm(executor.map(process_candidate, candidates_folders), total=len(candidates_folders)))
+
+        candidates_result.extend(results)
         self._print_as_table(candidates_result)
 
 
