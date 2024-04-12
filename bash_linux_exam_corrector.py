@@ -25,12 +25,13 @@ from pathlib import Path
 import tqdm
 from tabulate import tabulate
 
+from correction_backends.interfaces import BashLinuxBackendCorrector
 from correction_backends.simple_backend_corrector import SimpleBashLinuxBackendCorrector
-from helpers import TarFileHelper, ProcessRunnerHelper, FileHelper
+from helpers import TarFileHelper
 from interfaces import ExamCorrector
 
 
-class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, FileHelper):
+class BashLinuxExamCorrector(ExamCorrector, TarFileHelper):
     """
      A class to correct Linux exam files for candidates.
 
@@ -65,7 +66,7 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
     class ScriptFileNotFound(FileNotFoundError):
         pass
 
-    def __init__(self, candidates_exams_path: str, corrector: SimpleBashLinuxBackendCorrector,
+    def __init__(self, candidates_exams_path: str, corrector: BashLinuxBackendCorrector,
                  correct_exam_path: str = None) -> None:
         self.correct_exam_path = Path(correct_exam_path) if correct_exam_path else None
         self.candidates_exams_path = Path(candidates_exams_path)
