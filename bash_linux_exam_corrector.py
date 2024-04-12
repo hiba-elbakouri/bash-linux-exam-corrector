@@ -18,17 +18,16 @@
 #
 import concurrent
 import os
-import re
 import shutil
 import sys
 from pathlib import Path
 
 import tqdm
-from croniter import croniter
 from tabulate import tabulate
 
+from correction_backends.simple_backend_corrector import SimpleBashLinuxBackendCorrector
 from helpers import TarFileHelper, ProcessRunnerHelper, FileHelper
-from interfaces import ExamCorrector, ExamCorrectorBackend
+from interfaces import ExamCorrector
 
 
 class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, FileHelper):
@@ -56,9 +55,6 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
     _CRON_FILE = 'cron.txt'
     _SALES_FILE = 'sales.txt'
     _SCRIPT_FILE = 'exam.sh'
-    _OUTPUT_REGEX = (r'\b\w{3} \w{3} \d{2} \d{2}:\d{2}:\d{2} UTC \d{4}\n(?:rtx3060: \d+\n|rtx3070: \d+\n|rtx3080: '
-                     r'\d+\n|rtx3090: \d+\n|rx6700: \d+\n)+')
-    _API_PORT = '5000'
 
     class CronFileNotFound(FileNotFoundError):
         pass
@@ -69,13 +65,12 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
     class ScriptFileNotFound(FileNotFoundError):
         pass
 
-    def __init__(self, candidates_exams_path: str, corrector: ExamCorrectorBackend = None,
+    def __init__(self, candidates_exams_path: str, corrector: SimpleBashLinuxBackendCorrector,
                  correct_exam_path: str = None) -> None:
         self.correct_exam_path = Path(correct_exam_path) if correct_exam_path else None
         self.candidates_exams_path = Path(candidates_exams_path)
         self.corrector = corrector
         self._ROOT_DIRECTORY = Path(__file__).parent.absolute()
-        self._API_SCRIPT = self._ROOT_DIRECTORY / Path('api')
 
     def _fetch_exam_files_from_exams_folder(self):
         return self._fetch_tar_files_from_folder(self.candidates_exams_path)
@@ -119,86 +114,6 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
             raise ExceptionGroup('this is was bad', exceptions)
         return cron_file, script_file, sales_file
 
-    def _correct_cron_file(self, cron_file):
-        self._clean_up_cron_file(cron_file)
-        try:
-            with open(cron_file, 'r') as file:
-                for line_number, line in enumerate(file, start=1):
-
-                    # Split the line into fields (schedule and command)
-                    fields = line.strip().split(maxsplit=5)
-                    if len(fields) != 6:
-                        print(f"Error in line {line_number}: Invalid cron format")
-                        return False
-
-                    schedule = ' '.join(fields[:5])
-                    script_path = fields[5]
-
-                    # Validate the cron schedule
-                    try:
-                        croniter(schedule)
-                    except ValueError:
-                        print(f"Error in line {line_number}: Invalid cron schedule")
-                        return False
-
-                    # # Validate the script path
-                    # if not os.path.isfile(script_path):
-                    #     print(f"Error in line {line_number}: Script file not found")
-                    #     return False
-
-        except FileNotFoundError:
-            print(f"Error: File '{cron_file}' not found")
-            return False
-
-        return True
-
-    def _correct_script_output(self, output: str):
-        matches = re.findall(self._OUTPUT_REGEX, output)
-        if not matches:
-            return False
-        # Check if all GPU types appear in every occurrence
-        gpu_types = {'rtx3060', 'rtx3070', 'rtx3080', 'rtx3090', 'rx6700'}
-        for match in matches:
-            gpu_occurrences = re.findall(r'(rtx\d+|rx\d+): \d+', match)
-            matched_gpu_types = {
-                gpu_occurrence.split(':')[0]
-                for gpu_occurrence in gpu_occurrences
-            }
-            if not gpu_types.issubset(matched_gpu_types):
-                return False
-        return True
-
-    def _correct_sales_file(self, sales_file):
-        self._clean_up_ordinary_file(sales_file)
-        # Define the regex pattern
-        with open(sales_file, 'r') as file:
-            file_content = file.read()
-            return self._correct_script_output(file_content)
-
-    def _run_api_in_background(self):
-        self._release_port(self._API_PORT)
-        self._run_script(self._API_SCRIPT)
-
-    def _run_script_file(self, script_file: Path):
-        return self._run_script(script_file)
-
-    @staticmethod
-    def _replace_candidate_path_by_local_path(script_file: Path):
-        with open(script_file, 'r') as infile, open(script_file, 'w') as outfile:
-            for line in infile:
-                # Replace any occurrence of the specified directory path with "sales.txt"
-                modified_line = re.sub(r'\/(?:[^/]+\/)*sales\.txt', 'sales_1.txt', line)
-                # Write the modified line to the output file
-                outfile.write(modified_line)
-
-    def _correct_script_file(self, script_file: Path):
-        self._replace_candidate_path_by_local_path(script_file)
-        self._clean_up_bash_file(script_file)
-
-        self._run_api_in_background()
-        script_output = self._run_script_file(script_file)
-        return not 'Error' in script_output
-
     def _clean_extracted_files(self):
         folder = self._ROOT_DIRECTORY / self._EXAM_FILES_EXTRACTION_TARGET_FOLDER
         try:
@@ -233,9 +148,9 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
                 description += error_description_map[type(exception)]
         else:
             file_checks = {
-                'cron_incorrect': not self._correct_cron_file(cron_file),
-                'script_incorrect': not self._correct_script_file(script_file),
-                'sales_incorrect': not self._correct_sales_file(sales_file)
+                'cron_incorrect': not self.corrector.correct_cron_file(cron_file),
+                'script_incorrect': not self.corrector.correct_script_file(script_file),
+                'sales_incorrect': not self.corrector.correct_sales_file(sales_file)
             }
             for check, failed in file_checks.items():
                 if failed:
@@ -250,8 +165,7 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
         }
 
     def _clean_environment(self):
-        self._release_port(self._API_PORT)
-        # self._clean_extracted_files()
+        self._clean_extracted_files()
 
     def correct_candidate_files(self):
         exam_files = self._fetch_exam_files_from_exams_folder()
@@ -277,5 +191,5 @@ if __name__ == '__main__':
 
     exams_folder = sys.argv[1]  # Get the argument from command line
 
-    corrector = BashLinuxExamCorrector(exams_folder)
+    corrector = BashLinuxExamCorrector(exams_folder, SimpleBashLinuxBackendCorrector())
     corrector.correct_candidate_files()

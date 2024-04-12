@@ -44,7 +44,7 @@ class TarFileHelper:
 
 class FileHelper:
     _CRON_FILE_COMMENT_REGEX = r'^\s*#.*$'
-    _BASH_FILE_COMMENT_REGEX = r'^\s*#'
+    _BASH_FILE_COMMENT_REGEX = r'^\s*#.*$'
 
     @staticmethod
     def _remove_empty_lines(file_path):
@@ -96,9 +96,7 @@ class FileHelper:
         self._remove_empty_lines(cron_file_path)
         self._remove_comments_from_cron_file(cron_file_path)
 
-    def _clean_up_bash_file(self, bash_file_path: Path):
-        self._remove_empty_lines(bash_file_path)
-        self._remove_comments_from_bash_file(bash_file_path)
+
 
     def _clean_up_ordinary_file(self, ordinary_file_path: Path):
         self._remove_empty_lines(ordinary_file_path)

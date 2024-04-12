@@ -23,6 +23,3 @@ from pathlib import Path
 
 class ExamCorrector(ABC):
     pass
-
-class ExamCorrectorBackend(ABC):
-    pass
