@@ -44,7 +44,7 @@ class TarFileHelper:
 
 class FileHelper:
     _CRON_FILE_COMMENT_REGEX = r'^\s*#.*$'
-    _BASH_FILE_COMMENT_REGEX = r'^\s*#.*$'
+    _BASH_FILE_COMMENT_REGEX = r'(?<!^#!.*\n|^)#.*\n'
 
     @staticmethod
     def _remove_empty_lines(file_path):
