@@ -106,7 +106,7 @@ class FileHelper:
 
 class ProcessRunnerHelper:
     @staticmethod
-    def release_port(port):
+    def _release_port(port):
         try:
             # Check for processes using the port
             process = subprocess.run(['lsof', '-ti', f':{port}'], capture_output=True, text=True)
