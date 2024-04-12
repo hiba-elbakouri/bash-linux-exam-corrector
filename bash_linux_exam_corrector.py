@@ -19,6 +19,7 @@
 import concurrent
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -31,15 +32,32 @@ from interfaces import ExamCorrector, ExamCorrectorBackend
 
 
 class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, FileHelper):
+    """
+     A class to correct Linux exam files for candidates.
+
+     This class provides methods to fetch, extract, correct, and clean up exam files for candidates.
+     It includes functionality to handle cron, sales, and script files, and processes candidate files in a structured
+     manner.
+
+     Args:
+         candidates_exams_path (str): The path to the candidates' exam files.
+         corrector (ExamCorrectorBackend, optional): An instance of ExamCorrectorBackend for correction. Defaults to
+         None.
+         correct_exam_path (str, optional): The path to the correct exam file. Defaults to None.
+
+     Raises:
+         FileNotFoundError: If the cron, sales, or script file is not found during processing.
+
+     Returns:
+         None
+     """
     _EXAM_FILES_EXTRACTION_TARGET_FOLDER = Path('extracted_exam_files')
 
     _CRON_FILE = 'cron.txt'
     _SALES_FILE = 'sales.txt'
     _SCRIPT_FILE = 'exam.sh'
-    _OUTPUT_REGEX = (
-        r'(?s)(Thu|Fri|Sat|Sun|Mon|Tue|Wed) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+[0-9]{1,2} '
-        r'[0-9]{2}:[0-9]{2}:[0-9]{2} UTC '
-        r'[0-9]{4}\nrtx3060:\d+\nrtx3070:\d+\nrtx3080:\d+\nrtx3090:\d+\nrx6700:\d+')
+    _OUTPUT_REGEX = (r'\b\w{3} \w{3} \d{2} \d{2}:\d{2}:\d{2} UTC \d{4}\n(?:rtx3060: \d+\n|rtx3070: \d+\n|rtx3080: '
+                       r'\d+\n|rtx3090: \d+\n|rx6700: \d+\n)+')
 
     class CronFileNotFound(FileNotFoundError):
         pass
@@ -139,11 +157,8 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
         # Define the regex pattern
         with open(sales_file, 'r') as file:
             file_content = file.read()
-            # Define the regex pattern for a single occurrence
-            pattern = (r'\b\w{3} \w{3} \d{2} \d{2}:\d{2}:\d{2} UTC \d{4}\n(?:rtx3060: \d+\n|rtx3070: \d+\n|rtx3080: '
-                       r'\d+\n|rtx3090: \d+\n|rx6700: \d+\n)+')
             # Find all occurrences of the pattern in the file content
-            matches = re.findall(pattern, file_content)
+            matches = re.findall(self._OUTPUT_REGEX, file_content)
             # Check if all GPU types appear in every occurrence
             gpu_types = {'rtx3060', 'rtx3070', 'rtx3080', 'rtx3090', 'rx6700'}
             for match in matches:
