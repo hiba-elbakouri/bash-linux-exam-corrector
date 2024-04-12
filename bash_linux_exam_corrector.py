@@ -57,7 +57,8 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
     _SALES_FILE = 'sales.txt'
     _SCRIPT_FILE = 'exam.sh'
     _OUTPUT_REGEX = (r'\b\w{3} \w{3} \d{2} \d{2}:\d{2}:\d{2} UTC \d{4}\n(?:rtx3060: \d+\n|rtx3070: \d+\n|rtx3080: '
-                       r'\d+\n|rtx3090: \d+\n|rx6700: \d+\n)+')
+                     r'\d+\n|rtx3090: \d+\n|rx6700: \d+\n)+')
+    _API_PORT = '5000'
 
     class CronFileNotFound(FileNotFoundError):
         pass
@@ -74,12 +75,10 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
         self.candidates_exams_path = Path(candidates_exams_path)
         self.corrector = corrector
         self._ROOT_DIRECTORY = Path(__file__).parent.absolute()
-
+        self._API_SCRIPT = self._ROOT_DIRECTORY / Path('api')
 
     def _fetch_exam_files_from_exams_folder(self):
         return self._fetch_tar_files_from_folder(self.candidates_exams_path)
-
-
 
     def _extract_exam_file_to_destination(self, exam_file):
         destination = self._ROOT_DIRECTORY / self._EXAM_FILES_EXTRACTION_TARGET_FOLDER / exam_file.name
@@ -95,7 +94,8 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
         return folder_path.name.split('.')[0].split('_')[1]
 
     def _fetch_candidate_files(self, candidate_folder_path):
-        # TODO treat the case if other files exist
+        # TODO treat the case if other files exist, in this case we should decide if there is no problem with that
+        #  or the candidate should fail giving the fact that he delivered unnecessary files
         cron_file = None
         script_file = None
         sales_file = None
@@ -152,28 +152,52 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
 
         return True
 
+    def _correct_script_output(self, output: str):
+        matches = re.findall(self._OUTPUT_REGEX, output)
+        if not matches:
+            return False
+        # Check if all GPU types appear in every occurrence
+        gpu_types = {'rtx3060', 'rtx3070', 'rtx3080', 'rtx3090', 'rx6700'}
+        for match in matches:
+            gpu_occurrences = re.findall(r'(rtx\d+|rx\d+): \d+', match)
+            matched_gpu_types = {
+                gpu_occurrence.split(':')[0]
+                for gpu_occurrence in gpu_occurrences
+            }
+            if not gpu_types.issubset(matched_gpu_types):
+                return False
+        return True
+
     def _correct_sales_file(self, sales_file):
         self._clean_up_ordinary_file(sales_file)
         # Define the regex pattern
         with open(sales_file, 'r') as file:
             file_content = file.read()
-            # Find all occurrences of the pattern in the file content
-            matches = re.findall(self._OUTPUT_REGEX, file_content)
-            # Check if all GPU types appear in every occurrence
-            gpu_types = {'rtx3060', 'rtx3070', 'rtx3080', 'rtx3090', 'rx6700'}
-            for match in matches:
-                gpu_occurrences = re.findall(r'(rtx\d+|rx\d+): \d+', match)
-                matched_gpu_types = {
-                    gpu_occurrence.split(':')[0]
-                    for gpu_occurrence in gpu_occurrences
-                }
-                if not gpu_types.issubset(matched_gpu_types):
-                    return False
-            return True
+            return self._correct_script_output(file_content)
 
-    def _correct_script_file(self, script_file):
+    def _run_api_in_background(self):
+        self._release_port(self._API_PORT)
+        self._run_script(self._API_SCRIPT)
+
+    def _run_script_file(self, script_file: Path):
+        return self._run_script(script_file)
+
+    @staticmethod
+    def _replace_candidate_path_by_local_path(script_file: Path):
+        with open(script_file, 'r') as infile, open(script_file, 'w') as outfile:
+            for line in infile:
+                # Replace any occurrence of the specified directory path with "sales.txt"
+                modified_line = re.sub(r'\/(?:[^/]+\/)*sales\.txt', 'sales_1.txt', line)
+                # Write the modified line to the output file
+                outfile.write(modified_line)
+
+    def _correct_script_file(self, script_file: Path):
+        self._replace_candidate_path_by_local_path(script_file)
         self._clean_up_bash_file(script_file)
-        return True
+
+        self._run_api_in_background()
+        script_output = self._run_script_file(script_file)
+        return not 'Error' in script_output
 
     def _clean_extracted_files(self):
         folder = self._ROOT_DIRECTORY / self._EXAM_FILES_EXTRACTION_TARGET_FOLDER
@@ -182,20 +206,17 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
         except OSError as e:
             print(f"Error: {folder} could not be removed. Reason: {e}")
 
-    def _print_as_table(self, data):
+    @staticmethod
+    def _print_as_table(data):
         headers = data[0].keys()
 
         table_data = [[d[key] for key in headers] for d in data]
 
         print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
-    def correct_candidate_files(self):
-        candidates_result = []
-        exam_files = self._fetch_exam_files_from_exams_folder()
-        for exam_file in exam_files:
-            self._extract_exam_file_to_destination(exam_file)
-        candidates_folders = self._fetch_candidates_folders()
-
+    def _process_candidate(self, candidate_folder_path):
+        candidate_name = self._fetch_candidate_name_from_folder_path(candidate_folder_path)
+        description = ''
         error_description_map = {
             self.CronFileNotFound: '- cron file not found',
             self.ScriptFileNotFound: '- script file not found',
@@ -204,41 +225,48 @@ class BashLinuxExamCorrector(ExamCorrector, TarFileHelper, ProcessRunnerHelper, 
             'script_incorrect': '- script file is not correct',
             'sales_incorrect': '- sales file is not correct'
         }
+        try:
+            cron_file, script_file, sales_file = self._fetch_candidate_files(candidate_folder_path)
+        except ExceptionGroup as e:
+            result = 'Failed'
+            for exception in e.exceptions:
+                description += error_description_map[type(exception)]
+        else:
+            file_checks = {
+                'cron_incorrect': not self._correct_cron_file(cron_file),
+                'script_incorrect': not self._correct_script_file(script_file),
+                'sales_incorrect': not self._correct_sales_file(sales_file)
+            }
+            for check, failed in file_checks.items():
+                if failed:
+                    description += error_description_map[check]
 
-        def process_candidate(candidate_folder_path):
-            candidate_result = {}
-            candidate_name = self._fetch_candidate_name_from_folder_path(candidate_folder_path)
-            description = ''
-            try:
-                cron_file, script_file, sales_file = self._fetch_candidate_files(candidate_folder_path)
-            except ExceptionGroup as e:
-                result = 'Failed'
-                for exception in e.exceptions:
-                    description += error_description_map[type(exception)]
-            else:
-                file_checks = {
-                    'cron_incorrect': not self._correct_cron_file(cron_file),
-                    'script_incorrect': not self._correct_script_file(script_file),
-                    'sales_incorrect': not self._correct_sales_file(sales_file)
-                }
-                for check, failed in file_checks.items():
-                    if failed:
-                        description += error_description_map[check]
+            result = 'Failed' if any(file_checks.values()) else 'Passed'
 
-                result = 'Failed' if any(file_checks.values()) else 'Passed'
+        return {
+            'candidate_name': candidate_name,
+            'result': result,
+            'remarques supplémentaires': description,
+        }
 
-            candidate_result['candidate_name'] = candidate_name
-            candidate_result['result'] = result
-            candidate_result['remarques supplémentaires'] = description
-            return candidate_result
+    def _clean_environment(self):
+        self._release_port(self._API_PORT)
+        # self._clean_extracted_files()
+
+    def correct_candidate_files(self):
+        exam_files = self._fetch_exam_files_from_exams_folder()
+        for exam_file in exam_files:
+            self._extract_exam_file_to_destination(exam_file)
+        candidates_folders = self._fetch_candidates_folders()
 
         # TODO think about making all candidates files processing asynchronous
         with concurrent.futures.ThreadPoolExecutor() as executor:
             results = list(
-                tqdm.tqdm(executor.map(process_candidate, candidates_folders), total=len(candidates_folders)))
+                tqdm.tqdm(executor.map(self._process_candidate, candidates_folders), total=len(candidates_folders)))
 
-        candidates_result.extend(results)
+        candidates_result = list(results)
         self._print_as_table(candidates_result)
+        self._clean_environment()
 
 
 if __name__ == '__main__':
