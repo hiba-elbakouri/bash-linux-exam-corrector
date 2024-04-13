@@ -77,7 +77,7 @@ class SimpleBashLinuxBackendCorrector(BashLinuxBackendCorrector, FileHelper, Pro
             print(f"An error occurred: {e}")
             return None
 
-    def correct_script_file(self, script_file: Path):
+    def correct_exam_file(self, script_file: Path):
         self._replace_candidate_path_by_local_path(script_file)
         self._clean_up_bash_file(script_file)
 

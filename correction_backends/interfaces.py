@@ -16,18 +16,31 @@
 #    \ \_______\ \_______\ \__\\ _\\ \__\\ _\\ \_______\ \_______\  \ \__\ \ \_______\ \__\\ _\
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
-from abc import ABC, abstractmethod
+from abc import abstractmethod, ABCMeta
 
 
-class BashLinuxBackendCorrector(ABC):
-    @abstractmethod
-    def correct_cron_file(self, cron_file):
-        pass
+class BackendCorrector(ABCMeta):
+    @staticmethod
+    def _fetch_method_name_from_file_name(file_name):
+        return f"correct_{file_name.split('.')[0]}_file"
 
-    @abstractmethod
-    def correct_script_file(self, script_file):
-        pass
+    def __new__(cls, name, bases, namespace):
+        # Add abstract method names to namespace
+        abstract_methods = namespace.get('_FILES_TO_CORRECT', [])
+        for method_name in abstract_methods:
+            namespace[cls._fetch_method_name_from_file_name(method_name)] = abstractmethod(
+                lambda self: None)  # Create a dummy abstract method
+        return super().__new__(cls, name, bases, namespace)
 
-    @abstractmethod
-    def correct_sales_file(self, __correct_sales_file):
-        pass
+
+class BashLinuxBackendCorrector(metaclass=BackendCorrector):
+    _CRON_FILE = 'cron.txt'
+    _SALES_FILE = 'sales.txt'
+    _SCRIPT_FILE = 'exam.sh'
+    _FILES_TO_CORRECT = [_CRON_FILE, _SALES_FILE, _SCRIPT_FILE]
+
+
+class DockerBackendCorrector(metaclass=BackendCorrector):
+    _DOCKER_FILE = 'Dockerfile'
+    _DOCKER_COMPOSE_FILE = 'docker-compose.yml'
+    _FILES_TO_CORRECT = [_DOCKER_FILE, _DOCKER_COMPOSE_FILE]
