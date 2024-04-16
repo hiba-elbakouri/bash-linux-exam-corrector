@@ -20,7 +20,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from bash_linux_exam_corrector import BashLinuxExamCorrector, TarFileHelper, ProcessRunnerHelper
+from exams_correctors.bash_linux_exam_correctors import BashLinuxExamCorrector, TarFileHelper, ProcessRunnerHelper
 
 
 # Assuming the presence of a mock Corrector interface and necessary mock files for testing

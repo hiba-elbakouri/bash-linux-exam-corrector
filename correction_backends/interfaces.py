@@ -31,16 +31,3 @@ class BackendCorrector(ABCMeta):
             namespace[cls._fetch_method_name_from_file_name(method_name)] = abstractmethod(
                 lambda self: None)  # Create a dummy abstract method
         return super().__new__(cls, name, bases, namespace)
-
-
-class BashLinuxBackendCorrector(metaclass=BackendCorrector):
-    _CRON_FILE = 'cron.txt'
-    _SALES_FILE = 'sales.txt'
-    _SCRIPT_FILE = 'exam.sh'
-    _FILES_TO_CORRECT = [_CRON_FILE, _SALES_FILE, _SCRIPT_FILE]
-
-
-class DockerBackendCorrector(metaclass=BackendCorrector):
-    _DOCKER_FILE = 'Dockerfile'
-    _DOCKER_COMPOSE_FILE = 'docker-compose.yml'
-    _FILES_TO_CORRECT = [_DOCKER_FILE, _DOCKER_COMPOSE_FILE]

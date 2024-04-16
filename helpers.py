@@ -24,12 +24,54 @@ from pathlib import Path
 
 
 class TarFileHelper:
+    """
+    Fetches all tar files from a specified folder.
+
+    Args:
+        folder: The folder to fetch tar files from.
+
+    Returns:
+        List of tar files in the folder.
+    """
+
+    """
+    Extracts a tar file to a specified destination.
+
+    Args:
+        tar_file: The tar file to be extracted.
+        destination: The destination to extract the tar file to.
+
+    Returns:
+        None
+    """
+
     @staticmethod
     def _fetch_tar_files_from_folder(folder):
+        """
+        Fetches all tar files from a specified folder.
+
+        Args:
+            folder: The folder to fetch tar files from.
+
+        Returns:
+            List of tar files in the folder.
+        """
+
         return list(folder.rglob('*.tar'))
 
     @staticmethod
     def _extract_tar_file(tar_file, destination):
+        """
+        Extracts a tar file to a specified destination.
+
+        Args:
+            tar_file: The tar file to be extracted.
+            destination: The destination to extract the tar file to.
+
+        Returns:
+            None
+        """
+
         try:
             with tarfile.open(tar_file, 'r') as tar:
                 tar.extractall(path=destination)
@@ -43,11 +85,33 @@ class TarFileHelper:
 
 
 class FileHelper:
+    """
+    Class for handling file operations like removing empty lines and comments from files.
+
+    Methods:
+        _remove_empty_lines(file_path): Removes empty lines from a file.
+        _remove_comments_from_file_according_to_regex(file_path, regex): Removes comments from a file based on a specified regex pattern.
+        _remove_comments_from_bash_file(bash_file_path): Removes comments from a bash file.
+        _remove_comments_from_cron_file(cron_file_path): Removes comments from a cron file.
+        _clean_up_cron_file(cron_file_path): Cleans up a cron file by removing empty lines and comments.
+        _clean_up_ordinary_file(ordinary_file_path): Cleans up an ordinary file by removing empty lines.
+    """
+
     _CRON_FILE_COMMENT_REGEX = r'^\s*#.*$'
     _BASH_FILE_COMMENT_REGEX = r'(?<!^#!.*\n|^)#.*\n'
 
     @staticmethod
     def _remove_empty_lines(file_path):
+        """
+        Removes empty lines from a file.
+
+        Args:
+            file_path: The path to the file to remove empty lines from.
+
+        Returns:
+            True if empty lines are successfully removed, False otherwise.
+        """
+
         try:
             # Read the file
             with open(file_path, 'r') as file:
@@ -67,6 +131,17 @@ class FileHelper:
 
     @staticmethod
     def _remove_comments_from_file_according_to_regex(file_path, regex):
+        """
+        Removes comments from a file based on a specified regex pattern.
+
+        Args:
+            file_path: The path to the file to remove comments from.
+            regex: The regular expression pattern to match comments.
+
+        Returns:
+            True if comments are successfully removed, False otherwise.
+        """
+
         try:
             with open(file_path, 'r') as f:
                 lines = f.readlines()
@@ -87,18 +162,56 @@ class FileHelper:
             return False
 
     def _remove_comments_from_bash_file(self, bash_file_path: Path):
+        """
+        Removes comments from a bash file.
+
+        Args:
+            bash_file_path: The path to the bash file to remove comments from.
+
+        Returns:
+            Result of removing comments from the bash file.
+        """
+
         return self._remove_comments_from_file_according_to_regex(bash_file_path, self._BASH_FILE_COMMENT_REGEX)
 
     def _remove_comments_from_cron_file(self, cron_file_path: Path):
+        """
+        Removes comments from a cron file.
+
+        Args:
+            cron_file_path: The path to the cron file to remove comments from.
+
+        Returns:
+            Result of removing comments from the cron file.
+        """
+
         return self._remove_comments_from_file_according_to_regex(cron_file_path, self._CRON_FILE_COMMENT_REGEX)
 
     def _clean_up_cron_file(self, cron_file_path: Path):
+        """
+        Cleans up a cron file by removing empty lines and comments.
+
+        Args:
+            cron_file_path: The path to the cron file to clean up.
+
+        Returns:
+            None
+        """
+
         self._remove_empty_lines(cron_file_path)
         self._remove_comments_from_cron_file(cron_file_path)
 
-
-
     def _clean_up_ordinary_file(self, ordinary_file_path: Path):
+        """
+        Cleans up an ordinary file by removing empty lines.
+
+        Args:
+            ordinary_file_path: The path to the ordinary file to clean up.
+
+        Returns:
+            None
+        """
+
         self._remove_empty_lines(ordinary_file_path)
 
 

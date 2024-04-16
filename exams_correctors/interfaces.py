@@ -21,12 +21,13 @@ import concurrent
 import os
 import shutil
 from abc import ABC, ABCMeta
+from concurrent import futures
 from pathlib import Path
 
 import tqdm
 from tabulate import tabulate
 
-from correction_backends.interfaces import BashLinuxBackendCorrector
+from correction_backends.bash_linux_backend_backend_correctors import BashLinuxBackendCorrector
 from helpers import TarFileHelper
 
 
@@ -38,7 +39,7 @@ class ExamCorrectorMeta(ABCMeta):
 
 
 class ExamCorrector(ABC, TarFileHelper, metaclass=ExamCorrectorMeta):
-    _EXAM_FILES_EXTRACTION_TARGET_FOLDER = Path('extracted_exam_files')
+    _EXAM_FILES_EXTRACTION_TARGET_FOLDER = Path('../extracted_exam_files')
     _FILES_TO_CORRECT = None
 
     def __init__(self, candidates_exams_path: str, backend_corrector: BashLinuxBackendCorrector):
@@ -60,7 +61,10 @@ class ExamCorrector(ABC, TarFileHelper, metaclass=ExamCorrectorMeta):
 
     @staticmethod
     def _fetch_candidate_name_from_folder_path(folder_path):
-        return folder_path.name.split('.')[0].split('_')[1]
+        try:
+            return folder_path.name.split('.')[0].split('_')[1]
+        except IndexError:
+            return folder_path.name.split('.')[0]
 
     def _clean_extracted_files(self):
         folder = self._ROOT_DIRECTORY / self._EXAM_FILES_EXTRACTION_TARGET_FOLDER
@@ -150,7 +154,7 @@ class ExamCorrector(ABC, TarFileHelper, metaclass=ExamCorrectorMeta):
         candidates_folders = self._fetch_candidates_folders()
 
         # TODO think about making all candidates files processing asynchronous
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with futures.ThreadPoolExecutor() as executor:
             results = list(
                 tqdm.tqdm(executor.map(self._process_candidate, candidates_folders), total=len(candidates_folders)))
 

@@ -16,13 +16,21 @@
 #    \ \_______\ \_______\ \__\\ _\\ \__\\ _\\ \_______\ \_______\  \ \__\ \ \_______\ \__\\ _\
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
+
 import re
 from pathlib import Path
 
 from croniter import croniter
 
-from correction_backends.interfaces import BashLinuxBackendCorrector
+from correction_backends.interfaces import BackendCorrector
 from helpers import FileHelper, ProcessRunnerHelper
+
+
+class BashLinuxBackendCorrector(metaclass=BackendCorrector):
+    _CRON_FILE = 'cron.txt'
+    _SALES_FILE = 'sales.txt'
+    _SCRIPT_FILE = 'exam.sh'
+    _FILES_TO_CORRECT = [_CRON_FILE, _SALES_FILE, _SCRIPT_FILE]
 
 
 class SimpleBashLinuxBackendCorrector(BashLinuxBackendCorrector, FileHelper, ProcessRunnerHelper):
