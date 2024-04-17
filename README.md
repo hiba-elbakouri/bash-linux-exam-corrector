@@ -1,6 +1,5 @@
-# Exam corrector
-it's a python script capable of correcting the bash linux exam files of
-multiple candidates
+# Exam grader   
+Working on a grader for any exam that requires a tar or zip compressed file containing x number of files as a deliverable. For the implementation, I combine the two design patterns AbstractFactory and Strategy. AbstractFactory to provide us with the different grader classes for different exams. Strategy to make an abstract call to the various correction methods of the classes. I started with a grader for the Bash and Linux exam and am currently working on developing graders for the others, including MongoDB and FastAPI exams.
 ## What does the script do ?
 
 1. extract all the exam files of the candidates to a specific destination
@@ -64,7 +63,7 @@ multiple candidates
 1. Run the script:
 
     ```bash
-    python bash_linux_exam_corrector.py <path_to_exams_folder>
+    python bash_linux_exam_correctors.py <path_to_exams_folder>
     ```
 2. Example of output:
     ```bash
