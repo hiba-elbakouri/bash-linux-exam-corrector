@@ -17,10 +17,9 @@
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
 from unittest.mock import patch, MagicMock
-
 import pytest
-
-from exams_correctors.bash_linux_exam_correctors import BashLinuxExamCorrector, TarFileHelper, ProcessRunnerHelper
+from exams_correctors.bash_linux_exam_correctors import BashLinuxExamCorrector
+from helpers import TarFileHelper, ProcessRunnerHelper
 
 
 # Assuming the presence of a mock Corrector interface and necessary mock files for testing

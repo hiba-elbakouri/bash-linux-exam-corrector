@@ -27,7 +27,7 @@ from pathlib import Path
 import tqdm
 from tabulate import tabulate
 
-from correction_backends.bash_linux_backend_backend_correctors import BashLinuxBackendCorrector
+from correction_backends.bash_linux_backend_correctors import BashLinuxBackendCorrector
 from helpers import TarFileHelper
 
 
@@ -156,7 +156,8 @@ class ExamCorrector(ABC, TarFileHelper, metaclass=ExamCorrectorMeta):
         # TODO think about making all candidates files processing asynchronous
         with futures.ThreadPoolExecutor() as executor:
             results = list(
-                tqdm.tqdm(executor.map(self._process_candidate, candidates_folders), total=len(candidates_folders)))
+                tqdm.tqdm(executor.map(self._process_candidate, candidates_folders),
+                          total=len(candidates_folders)))
 
         candidates_result = list(results)
         self._print_as_table(candidates_result)

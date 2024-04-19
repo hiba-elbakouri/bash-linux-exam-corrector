@@ -63,7 +63,7 @@ Working on a grader for any exam that requires a tar or zip compressed file cont
 1. Run the script:
 
     ```bash
-    python bash_linux_exam_correctors.py <path_to_exams_folder>
+    python main.py <relative_path_to_exams_folder>
     ```
 2. Example of output:
     ```bash
