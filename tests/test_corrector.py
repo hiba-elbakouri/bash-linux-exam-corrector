@@ -19,7 +19,7 @@
 from unittest.mock import patch, MagicMock
 import pytest
 from exams_correctors.bash_linux_exam_correctors import BashLinuxExamCorrector
-from helpers import TarFileHelper, ProcessRunnerHelper
+from helpers import ArchiveFileHelper, ProcessRunnerHelper
 
 
 # Assuming the presence of a mock Corrector interface and necessary mock files for testing
@@ -50,7 +50,7 @@ def test_correct_candidate_files_happy_path(exam_files, expected_result):
     create_mock_sales_file(valid=True)  # Creates a mock sales file with valid content
 
     # Act
-    with patch.object(TarFileHelper, '_fetch_tar_files_from_folder', return_value=exam_files), \
+    with patch.object(ArchiveFileHelper, '_fetch_tar_files_from_folder', return_value=exam_files), \
             patch.object(ProcessRunnerHelper, '_correct_sales_file', return_value=True), \
             patch('builtins.print', MagicMock()):
         result = corrector.correct_candidate_files()
@@ -69,7 +69,7 @@ def test_correct_candidate_files_edge_cases(exam_files, expected_result):
     create_mock_sales_file(valid=False)  # Creates a mock sales file with invalid content
 
     # Act
-    with patch.object(TarFileHelper, '_fetch_tar_files_from_folder', return_value=exam_files), \
+    with patch.object(ArchiveFileHelper, '_fetch_tar_files_from_folder', return_value=exam_files), \
             patch.object(ProcessRunnerHelper, '_correct_sales_file', return_value=False), \
             patch('builtins.print', MagicMock()):
         result = corrector.correct_candidate_files()
@@ -88,7 +88,7 @@ def test_correct_candidate_files_error_cases(exception, expected_result):
     corrector = BashLinuxExamCorrector(candidates_exams_path="/mock/path", corrector=MockCorrector())
 
     # Act
-    with patch.object(TarFileHelper, '_fetch_tar_files_from_folder', side_effect=exception), \
+    with patch.object(ArchiveFileHelper, '_fetch_tar_files_from_folder', side_effect=exception), \
             patch('builtins.print', MagicMock()):
         result = corrector.correct_candidate_files()
 

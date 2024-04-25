@@ -17,18 +17,16 @@
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
 #
-import concurrent
 import os
 import shutil
 from abc import ABC, ABCMeta
 from concurrent import futures
 from pathlib import Path
-
 import tqdm
 from tabulate import tabulate
 
-from correction_backends.bash_linux_backend_correctors import BashLinuxBackendCorrector
-from helpers import TarFileHelper
+from correction_backends.interfaces import BackendCorrector
+from helpers import ArchiveFileHelper
 
 
 class ExamCorrectorMeta(ABCMeta):
@@ -38,22 +36,26 @@ class ExamCorrectorMeta(ABCMeta):
         super().__init__(name, bases, namespace)
 
 
-class ExamCorrector(ABC, TarFileHelper, metaclass=ExamCorrectorMeta):
+class ExamCorrector(ABC, ArchiveFileHelper, metaclass=ExamCorrectorMeta):
     _EXAM_FILES_EXTRACTION_TARGET_FOLDER = Path('../extracted_exam_files')
     _FILES_TO_CORRECT = None
 
-    def __init__(self, candidates_exams_path: str, backend_corrector: BashLinuxBackendCorrector):
+    def __init__(self, candidates_exams_path: str,
+
+                 backend_corrector: BackendCorrector,
+                 show_only_failed_exams: bool = False):
         self.backend_corrector = backend_corrector
         self._ROOT_DIRECTORY = Path(__file__).parent.absolute()
         self.candidates_exams_path = Path(candidates_exams_path)
+        self.show_only_failed_exams = show_only_failed_exams
 
     def _fetch_exam_files_from_exams_folder(self):
-        return self._fetch_tar_files_from_folder(self.candidates_exams_path)
+        return self._fetch_archive_files_from_folder(self.candidates_exams_path)
 
     def _extract_exam_file_to_destination(self, exam_file):
         destination = self._ROOT_DIRECTORY / self._EXAM_FILES_EXTRACTION_TARGET_FOLDER / exam_file.name
         destination.mkdir(parents=True, exist_ok=True)
-        self._extract_tar_file(exam_file, destination)
+        self._extract_archive_file(exam_file, destination)
 
     def _fetch_candidates_folders(self):
         return [item for item in (self._ROOT_DIRECTORY / self._EXAM_FILES_EXTRACTION_TARGET_FOLDER).iterdir() if
@@ -97,22 +99,18 @@ class ExamCorrector(ABC, TarFileHelper, metaclass=ExamCorrectorMeta):
     def _fetch_candidate_files(self, candidate_folder_path):
         self._generate_exception_classes()
 
-        files_found = {file: None for file in self._FILES_TO_CORRECT}
-        for root, directories, files in os.walk(candidate_folder_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                if file in self._FILES_TO_CORRECT:
-                    files_found[file] = file_path
+        files_found = {
+            file: os.path.join(root, file)
+            for root, directories, files in os.walk(candidate_folder_path)
+            for file in files if file in self._FILES_TO_CORRECT
+        }
 
-        if exceptions := [
-            getattr(self, f'{file.capitalize()}FileNotFound')()
-            for file, file_path in files_found.items()
-            if not file_path
-        ]:
+        if missing_files := self._FILES_TO_CORRECT - files_found.keys():
+            exceptions = [getattr(self, f'{file.capitalize()}FileNotFound')() for file in missing_files]
             raise ExceptionGroup('Some files were not found', exceptions)
         return files_found
 
-    def _process_candidate(self, candidate_folder_path):
+    def _process_candidate(self, candidate_folder_path: Path):
         self._generate_exception_classes()
 
         candidate_name = self._fetch_candidate_name_from_folder_path(candidate_folder_path)
@@ -127,17 +125,26 @@ class ExamCorrector(ABC, TarFileHelper, metaclass=ExamCorrectorMeta):
         except ExceptionGroup as e:
             result = 'Failed'
             for exception in e.exceptions:
-                description += error_description_map[type(exception).__name__]
+                # TODO refactor this
+                if not description:
+                    description += error_description_map[type(exception).__name__]
+                else:
+                    description += f'\n{error_description_map[type(exception).__name__]}'
+
         else:
             file_checks = {
-                'incorrect': {file: not getattr(self.backend_corrector, f'correct_{file.split('.')[0]}_file')(
+                'incorrect': {file: not getattr(self.backend_corrector, f"correct_{file.split('.')[0]}_file")(
                     files_found.get(file))
                               for file
                               in self._FILES_TO_CORRECT}
             }
             for file, failed in file_checks['incorrect'].items():
                 if failed:
-                    description += error_description_map[f'{file.capitalize()}FileNotFound']
+                    # TODO refactor this
+                    if not description:
+                        description += f'{file} is incorrect'
+                    else:
+                        description += f'\n{file} is incorrect'
 
             result = 'Failed' if any(file_checks['incorrect'].values()) else 'Passed'
 
@@ -159,6 +166,12 @@ class ExamCorrector(ABC, TarFileHelper, metaclass=ExamCorrectorMeta):
                 tqdm.tqdm(executor.map(self._process_candidate, candidates_folders),
                           total=len(candidates_folders)))
 
-        candidates_result = list(results)
+        candidates_result = [
+            e
+            for e in results
+            if e['result'] == 'Failed'
+            and self.show_only_failed_exams
+            or not self.show_only_failed_exams
+        ]
         self._print_as_table(candidates_result)
         self._clean_environment()

@@ -16,73 +16,47 @@
 #    \ \_______\ \_______\ \__\\ _\\ \__\\ _\\ \_______\ \_______\  \ \__\ \ \_______\ \__\\ _\
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
+import os
 import re
 import subprocess
 import tarfile
 import time
+import zipfile
 from pathlib import Path
 
 
-class TarFileHelper:
-    """
-    Fetches all tar files from a specified folder.
-
-    Args:
-        folder: The folder to fetch tar files from.
-
-    Returns:
-        List of tar files in the folder.
-    """
-
-    """
-    Extracts a tar file to a specified destination.
-
-    Args:
-        tar_file: The tar file to be extracted.
-        destination: The destination to extract the tar file to.
-
-    Returns:
-        None
-    """
-
+class ArchiveFileHelper:
     @staticmethod
-    def _fetch_tar_files_from_folder(folder):
+    def _fetch_archive_files_from_folder(folder):
         """
-        Fetches all tar files from a specified folder.
+        Fetches all archive files (tar and zip) from a specified folder.
 
         Args:
-            folder: The folder to fetch tar files from.
+            folder: The folder to fetch archive files from.
 
         Returns:
-            List of tar files in the folder.
+            List of archive files in the folder.
         """
+        return list(folder.rglob('*.tar')) + list(folder.rglob('*.zip'))
 
-        return list(folder.rglob('*.tar'))
-
-    @staticmethod
-    def _extract_tar_file(tar_file, destination):
-        """
-        Extracts a tar file to a specified destination.
-
-        Args:
-            tar_file: The tar file to be extracted.
-            destination: The destination to extract the tar file to.
-
-        Returns:
-            None
-        """
-
+    @classmethod
+    def _extract_archive_file(cls, archive_file, destination):
         try:
-            with tarfile.open(tar_file, 'r') as tar:
-                tar.extractall(path=destination)
+            if archive_file.suffix == '.tar':
+                with tarfile.open(archive_file, 'r') as tar:
+                    tar.extractall(path=destination)
+            elif archive_file.suffix == '.zip':
+                with zipfile.ZipFile(archive_file, 'r') as zip_ref:
+                    zip_ref.extractall(destination)
             # print("Extraction completed successfully!")
         except FileNotFoundError:
             print("The specified file does not exist.")
         except tarfile.ReadError:
             print("The file is not a valid tar file.")
+        except zipfile.BadZipFile:
+            print("The file is not a valid zip file.")
         except Exception as e:
-            print(f"An error occurred: {e}")
-
+            print(f"An Extraction error occurred: {e}")
 
 class FileHelper:
     """
@@ -234,8 +208,11 @@ class ProcessRunnerHelper:
     @staticmethod
     def _run_script(script_file: Path, timeout=3) -> str:
         try:
+            if not os.access(script_file, os.X_OK):
+                # Change the permission of the script file to make it executable
+                os.chmod(script_file, 0o755)  # 0o755 sets permission to rwxr-xr-x
             # Execute the script with timeout
-            process = subprocess.Popen([script_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            process = subprocess.Popen(['bash', script_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             start_time = time.time()
 
             while process.poll() is None:

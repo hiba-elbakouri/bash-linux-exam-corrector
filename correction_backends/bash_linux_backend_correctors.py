@@ -16,7 +16,7 @@
 #    \ \_______\ \_______\ \__\\ _\\ \__\\ _\\ \_______\ \_______\  \ \__\ \ \_______\ \__\\ _\
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
-
+import os
 import re
 from pathlib import Path
 
@@ -35,8 +35,8 @@ class BashLinuxBackendCorrector(metaclass=BackendCorrector):
 
 class SimpleBashLinuxBackendCorrector(BashLinuxBackendCorrector, FileHelper, ProcessRunnerHelper):
     _API_PORT = '5000'
-    _OUTPUT_REGEX = (r'\b\w{3} \w{3} \d{2} \d{2}:\d{2}:\d{2} UTC \d{4}\n(?:rtx3060: \d+\n|rtx3070: \d+\n|rtx3080: '
-                     r'\d+\n|rtx3090: \d+\n|rx6700: \d+\n)+')
+    _OUTPUT_REGEX = (r'\b\w{3} \w{3} \d{2} \d{2}:\d{2}:\d{2} UTC \d{4}\n(?:rtx3060: ?\d+\n|rtx3070: ?\d+\n|rtx3080: ?'
+                     r'\d+\n|rtx3090: ?\d+\n|rx6700: ?\d+\n)+')
 
     def __init__(self):
         self._ROOT_DIRECTORY = Path(__file__).parent.absolute()
@@ -49,7 +49,7 @@ class SimpleBashLinuxBackendCorrector(BashLinuxBackendCorrector, FileHelper, Pro
         # Check if all GPU types appear in every occurrence
         gpu_types = {'rtx3060', 'rtx3070', 'rtx3080', 'rtx3090', 'rx6700'}
         for match in matches:
-            gpu_occurrences = re.findall(r'(rtx\d+|rx\d+): \d+', match)
+            gpu_occurrences = re.findall(r'(rtx\d+|rx\d+: ?\d+)', match)
             matched_gpu_types = {
                 gpu_occurrence.split(':')[0]
                 for gpu_occurrence in gpu_occurrences
@@ -72,6 +72,9 @@ class SimpleBashLinuxBackendCorrector(BashLinuxBackendCorrector, FileHelper, Pro
     @staticmethod
     def _replace_candidate_path_by_local_path(bash_file_path: Path):
         try:
+            if not os.access(bash_file_path, os.W_OK):
+                # Change the permission of the script file to make it executable
+                os.chmod(bash_file_path, 0o744)  # 0o755 sets permission to rwxr-xr-x
             # Read the content of the bash file
             with open(bash_file_path, 'r') as file:
                 bash_script = file.read()
@@ -86,6 +89,7 @@ class SimpleBashLinuxBackendCorrector(BashLinuxBackendCorrector, FileHelper, Pro
             return None
 
     def correct_exam_file(self, script_file: Path):
+        # TODO check the correctness of the script output
         self._replace_candidate_path_by_local_path(script_file)
         self._clean_up_bash_file(script_file)
 

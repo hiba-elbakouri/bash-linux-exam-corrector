@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 import pytest
 
-from helpers import TarFileHelper
+from helpers import ArchiveFileHelper
 
 
 # Test _fetch_tar_files_from_folder method
@@ -39,12 +39,15 @@ def test_fetch_tar_files_from_folder(test_id, folder_path, expected_files, tmp_p
         (folder / file).touch()
 
     # Act
-    result_files = TarFileHelper._fetch_tar_files_from_folder(Path(folder))
+    result_files = ArchiveFileHelper._fetch_archive_files_from_folder(Path(folder))
 
     # Assert
     assert len(result_files) == len(expected_files)
     assert all(
-        [Path(folder / file).name in [result_file.name for result_file in result_files] for file in expected_files])
+        Path(folder / file).name
+        in [result_file.name for result_file in result_files]
+        for file in expected_files
+    )
 
 
 # Test _extract_tar_file method
@@ -67,7 +70,7 @@ def test_extract_tar_file(test_id, tar_file_setup, destination_setup, expected_o
         tar_file.write_text("content")
     elif test_id == "error_case_unexpected_error":
         with patch("tarfile.open", side_effect=Exception("Mocked exception")):
-            TarFileHelper._extract_tar_file(tar_file, destination)
+            ArchiveFileHelper._extract_archive_file(tar_file, destination)
             captured = capsys.readouterr()
             assert captured.out == expected_output
             return
@@ -75,9 +78,9 @@ def test_extract_tar_file(test_id, tar_file_setup, destination_setup, expected_o
     # Act
     if expected_exception:
         with pytest.raises(expected_exception):
-            TarFileHelper._extract_tar_file(tar_file, destination)
+            ArchiveFileHelper._extract_archive_file(tar_file, destination)
     else:
-        TarFileHelper._extract_tar_file(tar_file, destination)
+        ArchiveFileHelper._extract_archive_file(tar_file, destination)
 
     # Assert
     captured = capsys.readouterr()
