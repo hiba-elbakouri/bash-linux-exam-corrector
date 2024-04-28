@@ -18,7 +18,7 @@
 #
 from unittest.mock import patch, MagicMock
 import pytest
-from exams_correctors.bash_linux_exam_correctors import BashLinuxExamCorrector
+from exams_correctors.bash_linux.bash_linux_exam_correctors import BashLinuxExamCorrector
 from helpers import ArchiveFileHelper, ProcessRunnerHelper
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from correction_backends.simple_backend_corrector import SimpleBashLinuxBackendCorrector
+from backend_correctors.bash_linux.bash_linux_backend_correctors import SimpleBashLinuxBackendCorrector
 
 
 @pytest.mark.parametrize("output,expected", [

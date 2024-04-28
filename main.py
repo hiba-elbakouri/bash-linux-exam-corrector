@@ -1,9 +1,9 @@
 import argparse
 
-from correction_backends.bash_linux_backend_correctors import SimpleBashLinuxBackendCorrector
-from correction_backends.fastapi.fastapi_backend_correctors import SimpleFastApiBackendCorrector
-from exams_correctors.bash_linux_exam_correctors import BashLinuxExamCorrector
-from exams_correctors.fastapi_exam_correctors import FastApiExamCorrector
+from backend_correctors.bash_linux.bash_linux_backend_correctors import SimpleBashLinuxBackendCorrector
+from backend_correctors.fastapi.fastapi_backend_correctors import SimpleFastApiBackendCorrector
+from exams_correctors.bash_linux.bash_linux_exam_correctors import BashLinuxExamCorrector
+from exams_correctors.fastapi.fastapi_exam_correctors import FastApiExamCorrector
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Bash Linux Exam Corrector')

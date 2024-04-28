@@ -25,7 +25,7 @@ from pathlib import Path
 import tqdm
 from tabulate import tabulate
 
-from correction_backends.interfaces import BackendCorrector
+from backend_correctors.interfaces import BackendCorrector
 from helpers import ArchiveFileHelper
 
 
@@ -173,5 +173,6 @@ class ExamCorrector(ABC, ArchiveFileHelper, metaclass=ExamCorrectorMeta):
             and self.show_only_failed_exams
             or not self.show_only_failed_exams
         ]
+
         self._print_as_table(candidates_result)
         self._clean_environment()
