@@ -22,7 +22,7 @@ from pathlib import Path
 
 from croniter import croniter
 
-from correction_backends.interfaces import BackendCorrector
+from backend_correctors.interfaces import BackendCorrector
 from helpers import FileHelper, ProcessRunnerHelper
 
 
