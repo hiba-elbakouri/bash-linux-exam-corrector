@@ -32,38 +32,13 @@ Working on a grader for any exam that requires a tar or zip compressed file cont
 3. write more unit tests involving many versions of correct and incorrect exams to 
    assure the correctness of the script increasing the coverage score 
 
-## Installation
-
-1. Clone the repository:
-
-    ```bash
-    git clone https://github.com/hiba-elbakouri/bash-linux-exam-corrector.git
-    ```
-
-2. create new virtual env envrionmenet:
-
-    ```bash
-    virtualenv -p python3 venv
-    ```
-   
-3. activate this virtual envrionmenet:
-
-    ```bash
-    source venv/bin/activate
-    ```
-
-4. install requirements.txt:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
 
 ## Usage
 
 1. Run the script:
 
     ```bash
-    python main.py <relative_path_to_exams_folder>
+    make correction
     ```
 2. Example of output:
     ```bash

@@ -1,4 +1,5 @@
 import argparse
+
 from correction_backends.bash_linux_backend_correctors import SimpleBashLinuxBackendCorrector
 from correction_backends.fastapi.fastapi_backend_correctors import SimpleFastApiBackendCorrector
 from exams_correctors.bash_linux_exam_correctors import BashLinuxExamCorrector
@@ -16,7 +17,8 @@ if __name__ == '__main__':
     exams_folder = args.path_to_exams_folder
     corrector_type = args.type
 
-    backend_corrector = SimpleBashLinuxBackendCorrector() if corrector_type == 'bash' else SimpleFastApiBackendCorrector()
+    backend_corrector = SimpleBashLinuxBackendCorrector() if corrector_type == 'bash' else (
+        SimpleFastApiBackendCorrector())
     ExamCorrector = BashLinuxExamCorrector if corrector_type == 'bash' else FastApiExamCorrector
 
     # TODO check backend corrector typing
