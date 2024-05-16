@@ -16,8 +16,6 @@
 #    \ \_______\ \_______\ \__\\ _\\ \__\\ _\\ \_______\ \_______\  \ \__\ \ \_______\ \__\\ _\
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
-import shutil
-import subprocess
 
 from exams_correctors.interfaces import ExamCorrector
 
@@ -38,5 +36,6 @@ class FastApiExamCorrector(ExamCorrector):
      """
 
     _API_FILE = 'main.py'
+    _REQUIREMENTS_FILE = 'requirements.txt'
 
-    _FILES_TO_CORRECT = [_API_FILE]
+    _FILES_TO_CORRECT = [_REQUIREMENTS_FILE, _API_FILE]

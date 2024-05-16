@@ -17,7 +17,9 @@
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
 from unittest.mock import patch, MagicMock
+
 import pytest
+
 from exams_correctors.bash_linux.bash_linux_exam_correctors import BashLinuxExamCorrector
 from helpers import ArchiveFileHelper, ProcessRunnerHelper
 
@@ -33,9 +35,8 @@ def create_mock_exam_files(num_files):
 
 
 def create_mock_sales_file(valid=True):
-    content = "Thu Mar 3 12:00:00 UTC 2022\nrtx3060:5\nrtx3070:10\nrtx3080:15\nrtx3090:20\nrx6700:25"
-    if not valid:
-        content = "Invalid content"
+    content = ("Thu Mar 3 12:00:00 UTC 2022\nrtx3060:5\nrtx3070:10\nrtx3080:15\n"
+               "rtx3090:20\nrx6700:25") if valid else "Invalid content"
     with open("mock_sales.txt", "w") as file:
         file.write(content)
 
@@ -49,10 +50,16 @@ def test_correct_candidate_files_happy_path(exam_files, expected_result):
     corrector = BashLinuxExamCorrector(candidates_exams_path="/mock/path", corrector=MockCorrector())
     create_mock_sales_file(valid=True)  # Creates a mock sales file with valid content
 
+    # Mock setup
+    mocks = {
+        '_fetch_tar_files_from_folder': exam_files,
+        '_correct_sales_file': True,
+        'print': MagicMock()
+    }
+
     # Act
-    with patch.object(ArchiveFileHelper, '_fetch_tar_files_from_folder', return_value=exam_files), \
-            patch.object(ProcessRunnerHelper, '_correct_sales_file', return_value=True), \
-            patch('builtins.print', MagicMock()):
+    with patch.multiple(ArchiveFileHelper, **mocks), \
+            patch.multiple(ProcessRunnerHelper, **mocks):
         result = corrector.correct_candidate_files()
 
     # Assert
@@ -64,17 +71,14 @@ def test_correct_candidate_files_happy_path(exam_files, expected_result):
     (create_mock_exam_files(num_files=0), "Failed"),
 ], ids=["edge-case-no-exam-files"])
 def test_correct_candidate_files_edge_cases(exam_files, expected_result):
-    # Arrange
-    corrector = BashLinuxExamCorrector(candidates_exams_path="/mock/path", corrector=MockCorrector())
-    create_mock_sales_file(valid=False)  # Creates a mock sales file with invalid content
+    corrector = BashLinuxExamCorrector(candidates_exams_path="/mock/path", backend_corrector=MockCorrector())
+    create_mock_sales_file(valid=False)
 
-    # Act
-    with patch.object(ArchiveFileHelper, '_fetch_tar_files_from_folder', return_value=exam_files), \
-            patch.object(ProcessRunnerHelper, '_correct_sales_file', return_value=False), \
+    with patch.multiple(ArchiveFileHelper, _fetch_tar_files_from_folder=MagicMock(return_value=exam_files)), \
+            patch.multiple(ProcessRunnerHelper, _correct_sales_file=MagicMock(return_value=False)), \
             patch('builtins.print', MagicMock()):
         result = corrector.correct_candidate_files()
 
-    # Assert
     assert all(
         candidate['result'] == expected_result for candidate in result), "All candidates should fail due to edge cases"
 
@@ -84,12 +88,10 @@ def test_correct_candidate_files_edge_cases(exam_files, expected_result):
     (FileNotFoundError, "Failed"),
 ], ids=["error-case-file-not-found"])
 def test_correct_candidate_files_error_cases(exception, expected_result):
-    # Arrange
-    corrector = BashLinuxExamCorrector(candidates_exams_path="/mock/path", corrector=MockCorrector())
-
-    # Act
-    with patch.object(ArchiveFileHelper, '_fetch_tar_files_from_folder', side_effect=exception), \
+    # Arrange & Act
+    with patch.multiple(ArchiveFileHelper, _fetch_tar_files_from_folder=MagicMock(side_effect=exception)), \
             patch('builtins.print', MagicMock()):
+        corrector = BashLinuxExamCorrector(candidates_exams_path="/mock/path", corrector=MockCorrector())
         result = corrector.correct_candidate_files()
 
     # Assert
