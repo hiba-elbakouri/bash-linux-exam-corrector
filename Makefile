@@ -19,7 +19,7 @@ build_correction:
 	fi
 
 # Rule to run the correction container
-run_correction: build_correction
+correction: build_correction
 	@if [ "$(EXAM_TYPE)" = "docker" ]; then \
 		docker run -v /var/run/docker.sock:/var/run/docker.sock -it my-dind-image ;\
 	else \
