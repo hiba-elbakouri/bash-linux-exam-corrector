@@ -17,6 +17,7 @@
 #     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
 #
 #
+
 import os
 import shutil
 from abc import ABC, ABCMeta
@@ -175,4 +176,4 @@ class ExamCorrector(ABC, ArchiveFileHelper, metaclass=ExamCorrectorMeta):
         ]
 
         self._print_as_table(candidates_result)
-        self._clean_environment()
+        # self._clean_environment()

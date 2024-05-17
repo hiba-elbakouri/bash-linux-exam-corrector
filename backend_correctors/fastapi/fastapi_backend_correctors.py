@@ -1,12 +1,28 @@
+# Copyright (c) 2024. THIS SOURCE CODE BELONGS TO DATASCIENTEST. ANY OUTSIDER REPLICATION OF IT IS LEGALLY
+# PERSECUTED
+#  _______      ___    ___ ________  _____ ______
+# |\  ___ \    |\  \  /  /|\   __  \|\   _ \  _   \
+# \ \   __/|   \ \  \/  / | \  \|\  \ \  \\\__\ \  \
+#  \ \  \_|/__  \ \    / / \ \   __  \ \  \\|__| \  \
+#   \ \  \_|\ \  /     \/   \ \  \ \  \ \  \    \ \  \
+#    \ \_______\/  /\   \    \ \__\ \__\ \__\    \ \__\
+#     \|_______/__/ /\ __\    \|__|\|__|\|__|     \|__|
+#              |__|/ \|__|
+#  ________  ________  ________  ________  _______   ________ _________  ________  ________
+# |\   ____\|\   __  \|\   __  \|\   __  \|\  ___ \ |\   ____\\___   ___\\   __  \|\   __  \
+# \ \  \___|\ \  \|\  \ \  \|\  \ \  \|\  \ \   __/|\ \  \___\|___ \  \_\ \  \|\  \ \  \|\  \
+#  \ \  \    \ \  \\\  \ \   _  _\ \   _  _\ \  \_|/_\ \  \       \ \  \ \ \  \\\  \ \   _  _\
+#   \ \  \____\ \  \\\  \ \  \\  \\ \  \\  \\ \  \_|\ \ \  \____   \ \  \ \ \  \\\  \ \  \\  \|
+#    \ \_______\ \_______\ \__\\ _\\ \__\\ _\\ \_______\ \_______\  \ \__\ \ \_______\ \__\\ _\
+#     \|_______|\|_______|\|__|\|__|\|__|\|__|\|_______|\|_______|   \|__|  \|_______|\|__|\|__|
+#
 import contextlib
-import os
+import json
 import shutil
 import subprocess
 import time
 from pathlib import Path
-
 import requests
-
 from backend_correctors.interfaces import BackendCorrector
 from helpers import FileHelper, ProcessRunnerHelper
 
@@ -17,115 +33,118 @@ class FastApiBackendCorrector(metaclass=BackendCorrector):
 
 
 class SimpleFastApiBackendCorrector(FastApiBackendCorrector, FileHelper, ProcessRunnerHelper):
+    BASE_URL = "http://localhost:8000"
+    ENDPOINTS = {
+        "questions": f"{BASE_URL}/questions",
+        "add_questions": f"{BASE_URL}/add-questions",
+        "alive": f"{BASE_URL}/alive"
+    }
+    AUTH = ("admin", "4dm1N")
+    TEMPLATE_KEYS = {
+        "question", "subject", "use", "correct", "responseA",
+        "responseB", "responseC", "responseD", "remark"
+    }
 
     def __init__(self):
         self._ROOT_DIRECTORY = Path(__file__).parent.absolute()
+        self._env_path = self._ROOT_DIRECTORY / "../../myenv"
+        self._extracted_path = self._ROOT_DIRECTORY / "../../extracted_exam_files"
 
     @staticmethod
     def _create_virtualenv():
-        subprocess.run(['python3', '-m', 'venv', 'myenv'])
+        subprocess.run(['python3', '-m', 'venv', 'myenv'], check=True)
 
     def _install_requirements(self, file_path):
-
-        subprocess.run([f'{self._ROOT_DIRECTORY}/../../myenv/bin/pip3', 'install', '-r',
-                        file_path])
+        subprocess.run([self._env_path / 'bin' / 'pip3', 'install', '-r', file_path], check=True)
 
     def _add_init_file(self):
-        # Create __init__.py file in the destination directory
-        init_file_path = os.path.join(f'{self._ROOT_DIRECTORY}/../../extracted_exam_files/',
-                                      "__init__.py")
-        with open(init_file_path, "w"):
-            pass  # This creates an empty __init__.py file
+        init_file_path = self._extracted_path / "__init__.py"
+        init_file_path.touch()
 
     def _copy_api_file(self, file_path):
-        shutil.copy(file_path, f'{self._ROOT_DIRECTORY}/../../extracted_exam_files')
+        shutil.copy(file_path, self._extracted_path)
 
     def _run_api(self):
-
-        # Define the Uvicorn command
         uvicorn_command = [
-            f"{self._ROOT_DIRECTORY}/../../myenv/bin/uvicorn", "extracted_exam_files.main:app"
+            str(self._env_path / 'bin' / 'uvicorn'), "extracted_exam_files.main:app"
         ]
-        # time.sleep(1000)
-
-        # Run Uvicorn in the background
-        uvicorn_process = subprocess.Popen(uvicorn_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        # Optionally, you can capture the output
-        # stdout, stderr = uvicorn_process.communicate()
-        # print(stdout, stderr)
-        return uvicorn_process
+        return subprocess.Popen(uvicorn_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     @staticmethod
-    def _test_get_questions_endpoint():
-        response = requests.get("http://localhost:8000/alive")
-        if response.status_code == 200:
-            print("Server started successfully!")
-            # import pdb; pdb.set_trace()
-            return response.json() == {'message': "L'API fonctionne"}
+    def _fetch_response(endpoint):
+        response = requests.get(endpoint, auth=SimpleFastApiBackendCorrector.AUTH)
+        return response.json() if response.status_code == 200 else None
+
+    @staticmethod
+    def _responses_are_different(response_1, response_2):
+        return json.dumps(response_1, sort_keys=True) != json.dumps(response_2, sort_keys=True)
+
+    @staticmethod
+    def _test_if_get_questions_endpoint_response_is_random():
+        response_1 = SimpleFastApiBackendCorrector._fetch_response(SimpleFastApiBackendCorrector.ENDPOINTS["questions"])
+        time.sleep(1)
+        response_2 = SimpleFastApiBackendCorrector._fetch_response(SimpleFastApiBackendCorrector.ENDPOINTS["questions"])
+        return SimpleFastApiBackendCorrector._responses_are_different(response_1, response_2)
+
+    @staticmethod
+    def _test_get_questions_endpoint_response_structure():
+        response = SimpleFastApiBackendCorrector._fetch_response(SimpleFastApiBackendCorrector.ENDPOINTS["questions"])
+        if response and isinstance(response, list):
+            return all(
+                isinstance(item, dict) and set(item.keys()) == SimpleFastApiBackendCorrector.TEMPLATE_KEYS
+                for item in response
+            )
+        return False
+
+    def _test_get_questions_endpoint_response(self):
+        structure_valid = self._test_get_questions_endpoint_response_structure()
+        response_is_random = self._test_if_get_questions_endpoint_response_is_random()
+        return structure_valid and response_is_random
 
     @staticmethod
     def _test_add_questions_endpoint():
-        response = requests.post("http://localhost:8000/alive")
-        if response.status_code == 200:
-            print("Server started successfully!")
-            return response.json() == {'message': "L'API fonctionne"}
+        response = requests.post(SimpleFastApiBackendCorrector.ENDPOINTS["add_questions"],
+                                 auth=SimpleFastApiBackendCorrector.AUTH)
+        return response.status_code == 200 and response.json() == {"Message": "La question a bien été ajoutée"}
 
     @staticmethod
-    def _test_health_check_endpoint() -> bool:
-        timeout = 50  # in seconds
+    def _test_health_check_endpoint(timeout=50):
         start_time = time.time()
         while time.time() - start_time < timeout:
             with contextlib.suppress(Exception):
-                # Try sending a request to the server
-                response = requests.get("http://localhost:8000/alive")
-
-                if response.status_code == 200:
-                    print("Server started successfully!")
-                    # import pdb; pdb.set_trace()
-                    print('--------------------------------------')
-                    print(response.json())
-                    return response.json() == {'message': "L'API fonctionne"}
+                response = requests.get(SimpleFastApiBackendCorrector.ENDPOINTS["alive"])
+                if response.status_code == 200 and response.json() == {'message': "L'API fonctionne"}:
+                    return True
             time.sleep(1)
-        else:
-            print(f"Timeout: Server did not start within {timeout} seconds")
+        print(f"Timeout: Server did not start within {timeout} seconds")
+        return False
 
     @staticmethod
     def _terminate_uvicorn_process(uvicorn_process):
-
-        # Terminate the process
         uvicorn_process.terminate()
-        # Wait for the process to terminate
-        uvicorn_process.wait(timeout=5)
-        if uvicorn_process.returncode is None:
-            # If the process is still running after timeout, kill it forcefully
+        try:
+            uvicorn_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
             uvicorn_process.kill()
-
-        # Run correction scripts (replace this with your actual correction logic)
-        # subprocess.run(['pytest', 'tests'])  # Example: Run tests using pytest
-        # subprocess.run(['flake8', 'src'])
 
     @staticmethod
     def _cleanup():
-        # Clean up virtual environment
         shutil.rmtree('myenv')
 
     def correct_main_file(self, main_file):
         uvicorn_process = None
-        flag = None
         try:
             self._add_init_file()
             self._copy_api_file(main_file)
             uvicorn_process = self._run_api()
-            flag = self._test_health_check_endpoint()
-            flag_1 = self._test_get_questions_endpoint()
-            flag_2 = self._test_add_questions_endpoint()
-
+            health_check_passed = self._test_health_check_endpoint()
+            questions_endpoint_valid = self._test_get_questions_endpoint_response()
+            add_questions_endpoint_valid = self._test_add_questions_endpoint()
+            return health_check_passed and questions_endpoint_valid and add_questions_endpoint_valid
         finally:
             if uvicorn_process:
                 self._terminate_uvicorn_process(uvicorn_process)
             self._cleanup()
-            return True if flag else False
 
     def correct_requirements_file(self, requirement_file):
         try:
