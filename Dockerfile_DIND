@@ -1,0 +1,20 @@
+# Use the official Docker image as the base image
+FROM docker:latest
+
+# Install necessary packages
+RUN apk update && \
+    apk add --no-cache python3 py3-pip openssl-dev libffi-dev gcc libc-dev make
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the Dockerfile_DIND file into the working directory
+COPY . /app/
+
+# Expose Docker daemon port
+EXPOSE 2375
+
+# Start Docker daemon
+
+# Start Docker daemon and run docker-compose up
+CMD ["sh", "-c", "dockerd -H tcp://0.0.0.0:2375 & sleep 10 && docker compose up"]

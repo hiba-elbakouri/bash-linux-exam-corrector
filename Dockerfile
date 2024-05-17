@@ -11,4 +11,16 @@ COPY . /app
 
 RUN pip install -r requirements.txt
 
-CMD ["python3", "main.py", "bash_linux_exams"]
+# Accept the build argument EXAM_TYPE
+ARG EXAM_TYPE
+ARG EXAM_FOLDER
+
+
+# Set a default value for EXAM_TYPE in case it's not provided
+ENV EXAM_TYPE=${EXAM_TYPE:-bash_linux_exam}
+
+ENV EXAM_FOLDER=${EXAM_FOLDER:-bash_linux_exam}
+
+
+# Use shell form to ensure the environment variable is expanded
+CMD python3 main.py --type $EXAM_TYPE $EXAM_FOLDER
