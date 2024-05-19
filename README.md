@@ -163,3 +163,8 @@ Working on a grader for any exam that requires a tar or zip compressed file cont
    | FONTAINE         | Failed   | - cron file is not correct                                         |
    +------------------+----------+--------------------------------------------------------------------+
     ```
+### GUI
+
+![Alt Text](gui_usage.gif)
+
+
