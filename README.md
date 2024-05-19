@@ -40,7 +40,30 @@ Working on a grader for any exam that requires a tar or zip compressed file cont
     ```bash
     make correction EXAM_TYPE=bash  EXAM_FOLDER=bash_linux_exams
     ```
-
+2. Example of output:
+    ```bash
+    +------------------+----------+--------------------------------------------------------------------+
+   | candidate_name   | result   | remarques supplémentaires                                          |
+   +==================+==========+====================================================================+
+   | braun            | Failed   | - cron file is not correct- sales file is not correct              |
+   +------------------+----------+--------------------------------------------------------------------+
+   | JACOB            | Failed   | - cron file is not correct- sales file is not correct              |
+   +------------------+----------+--------------------------------------------------------------------+
+   | docker           | Failed   | - cron file not found- sales file not found- script file not found |
+   +------------------+----------+--------------------------------------------------------------------+
+   | CLAUDE           | Failed   | - sales file is not correct                                        |
+   +------------------+----------+--------------------------------------------------------------------+
+   | ferreira         | Failed   | - cron file is not correct- sales file is not correct              |
+   +------------------+----------+--------------------------------------------------------------------+
+   | CLACO (1)        | Failed   | - cron file is not correct- sales file is not correct              |
+   +------------------+----------+--------------------------------------------------------------------+
+   | Rim              | Failed   | - cron file is not correct                                         |
+   +------------------+----------+--------------------------------------------------------------------+
+   | SALL             | Failed   | - cron file is not correct- sales file is not correct              |
+   +------------------+----------+--------------------------------------------------------------------+
+   | FONTAINE         | Failed   | - cron file is not correct                                         |
+   +------------------+----------+--------------------------------------------------------------------+
+    ```
 ### MongoDB
 <img src="logos/mongodb.svg" alt="Bash" width="250" height="150">
 
