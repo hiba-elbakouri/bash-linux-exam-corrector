@@ -31,7 +31,7 @@ Explorez ce jeu de données pour comprendre ces données.
 Sur l'application ou le navigateur Web, l'utilisateur doit pouvoir choisir un type de test (`use`) ainsi qu'une ou plusieurs catégories (`subject`). De plus, l'application peut produire des QCMs de 5, 10 ou 20 questions. L'API doit donc être en mesure de retourner ce nombre de questions. Comme l'application doit pouvoir générer de nombreux QCMs, les questions doivent être retournées dans un ordre aléatoire: ainsi, une requête avec les mêmes paramètres pourra retourner des questions différentes.
 
 ### Authentification
-L'API utilise une authentification basique, à base de nom d'utilisateur et de mot de passe. La chaîne de caractères contenant Basic username:password devra être passée dans l'en-tête Authorization (en théorie, cette chaîne de caractère devrait être encodée mais pour simplifier l'exercice, on peut choisir de ne pas l'encoder).
+L'API utilise une authentification basique, à base de nom d'utilisateur et de mot de passe. Les informations d'authentification doivent être incluses dans les en-têtes (headers) de la requête. Le nom d'utilisateur et le mot de passe doivent être envoyés encodés en Base64 dans le format suivant : `Authorization: Basic <credentials>`, où `<credentials>` est la chaîne Base64 de la forme `username:password`.
 
 Pour les identifiants, on pourra utiliser le dictionnaire suivant:
 
@@ -54,25 +54,26 @@ Pour les identifiants, on pourra utiliser le dictionnaire suivant:
 - **Description**: Génère un QCM basé sur les paramètres fournis.
 - **Méthode HTTP**: POST
 - **Payload**:
-  - `"username"`: Le nom d'utilisateur de l'utilisateur qui demande le QCM.
-  - `"password"`: Le mot de passe de l'utilisateur.
   - `"test_type"`: Le type de test souhaité (par exemple "multiple_choice").
   - `"categories"`: Une liste des catégories de questions souhaitées.
   - `"number_of_questions"`: Le nombre de questions à inclure dans le QCM.
 - **Authentification**:
-  - Utilise l'authentification basique avec le nom d'utilisateur et le mot de passe fournis dans le payload.
+  - Utilise l'authentification basique avec les en-têtes (headers) de la requête.
 - **Réponse**:
   - Une liste de questions au format JSON.
-- **Exemples de payload**:
-  ```json
-  {
-    "username": "alice",
-    "password": "wonderland",
-    "test_type": "multiple_choice",
-    "categories": ["math", "history"],
-    "number_of_questions": 10
-  }
-  ```
+  - **Exemple de requête**:
+    ```http
+    POST /generate_quiz HTTP/1.1
+    Host: example.com
+    Authorization: {‘username’: ‘test’, password: ‘test’} 
+    Content-Type: application/json
+  
+    {
+      "test_type": "multiple_choice",
+      "categories": ["math", "history"],
+      "number_of_questions": 10
+    }
+    ```
 - **Exemple de réponse**:
   ```json
   [
