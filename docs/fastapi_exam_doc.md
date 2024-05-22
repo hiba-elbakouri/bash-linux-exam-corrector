@@ -1,58 +1,131 @@
-# Sujet d'Examen
+# Évaluation du module FastAPI
 
-**Titre : Création et Gestion d'une API de Questions à Choix Multiples avec FastAPI**
+## Contexte
+Pour cette évaluation, nous allons nous placer dans la peau d'une entreprise qui crée des questionnaires via une application pour Smartphone ou pour navigateur Web. Pour simplifier l'architecture de ces différents produits, l'entreprise veut mettre en place une API. Celle-ci a pour but d'interroger une base de données pour retourner une série de questions.
 
-**Aperçu :**
-Dans cet examen, vous démontrerez votre capacité à créer et gérer une API pour un système de questions à choix multiples en utilisant FastAPI. L'API gérera l'authentification des utilisateurs, la récupération des questions et la création de nouvelles questions. Vous utiliserez diverses bibliothèques Python, notamment FastAPI, Pydantic, Pandas et Enum, ainsi que l'authentification HTTP Basic pour la sécurité des utilisateurs.
+L'objectif de cette évaluation est donc de créer cette API.
 
-**Tâches de l'Examen :**
+## Les données
+Notre base de données est représentée par un fichier csv disponible à cette adresse.
 
-1. **Installation et Initialisation :**
-   - Initialiser une application FastAPI.
-   - Importer les modules nécessaires : `Enum`, `FastAPI`, `Query`, `Depends`, `HTTPException`, `status`, `Form`, `HTTPBasic`, `HTTPBasicCredentials` de `fastapi`, `BaseModel` de `pydantic`, `List`, `Union` de `typing`, et `Annotated` de `typing_extensions`.
-   - Charger et prétraiter les données des questions à partir d'un fichier CSV en utilisant Pandas, en s'assurant que les noms des colonnes sont renommés pour plus de clarté.
+Vous pouvez télécharger le jeu de données sur la machine en faisant:
 
-2. **Prétraitement des Données :**
-   - Charger le fichier CSV `questions.csv` contenant les questions.
-   - Renommer les colonnes en `Question`, `Response_A`, `Response_B`, `Response_C`, `Response_D`, et `Subject`.
-   - Corriger les fautes de frappe ou les incohérences dans les données, comme s'assurer que les noms des sujets sont correctement orthographiés.
+```
+wget https://dst-de.s3.eu-west-3.amazonaws.com/fastapi_fr/questions.csv
+```
 
-3. **Modèles de Données :**
-   - Créer des modèles Pydantic pour représenter une question avec trois choix de réponse (`Question`) et une question avec quatre choix de réponse (`Question_D`).
+On y retrouve les champs suivants:
 
-4. **Énumérations pour les Types de Test et les Nombres de Questions :**
-   - Définir l'énumération `Test_Type` avec les options pour les tests de `positioning` et de `validation`.
-   - Définir l'énumération `Quest_Num` avec les options pour sélectionner 5, 10 ou 20 questions.
+- `question`: l'intitulé de la question
+- `subject`: la catégorie de la question
+- `correct`: la liste des réponses correctes
+- `use`: le type de QCM pour lequel cette question est utilisée
+- `responseA`: réponse A
+- `responseB`: réponse B
+- `responseC`: réponse C
+- `responseD`: la réponse D (si elle existe)
 
-5. **Authentification des Utilisateurs :**
-   - Implémenter un dictionnaire `users_db` pour stocker les paires nom d'utilisateur-mot de passe.
-   - Créer une fonction `get_current_username` pour valider les identifiants des utilisateurs en utilisant l'authentification HTTP Basic. Retourner le nom d'utilisateur si les identifiants sont valides, sinon lever une exception `HTTP_401_UNAUTHORIZED`.
+Explorez ce jeu de données pour comprendre ces données.
 
-6. **Endpoint de Récupération des Questions :**
-   - Implémenter un endpoint `/questions` pour récupérer des questions à choix multiples.
-   - Utiliser des paramètres de requête pour filtrer les questions par type de test, nombre de questions, et éventuellement par sujets.
-   - S'assurer que le modèle de réponse peut retourner dynamiquement soit `Question` soit `Question_D` en fonction de la présence du quatrième choix de réponse.
+## L'API
+Sur l'application ou le navigateur Web, l'utilisateur doit pouvoir choisir un type de test (`use`) ainsi qu'une ou plusieurs catégories (`subject`). De plus, l'application peut produire des QCMs de 5, 10 ou 20 questions. L'API doit donc être en mesure de retourner ce nombre de questions. Comme l'application doit pouvoir générer de nombreux QCMs, les questions doivent être retournées dans un ordre aléatoire: ainsi, une requête avec les mêmes paramètres pourra retourner des questions différentes.
 
-7. **Endpoint de Création de Questions :**
-   - Implémenter un endpoint `/new_question` pour permettre aux utilisateurs authentifiés de créer de nouvelles questions.
-   - Utiliser les données de formulaire pour accepter les détails de la question, y compris le texte de la question, le sujet, la réponse correcte, l'utilisation prévue, et les choix de réponse.
-   - Restreindre la création de questions aux utilisateurs ayant le nom d'utilisateur "admin".
-   - Ajouter la nouvelle question au DataFrame et la sauvegarder dans le fichier CSV.
+### Authentification
+L'API utilise une authentification basique, à base de nom d'utilisateur et de mot de passe. La chaîne de caractères contenant Basic username:password devra être passée dans l'en-tête Authorization (en théorie, cette chaîne de caractère devrait être encodée mais pour simplifier l'exercice, on peut choisir de ne pas l'encoder).
 
-**Fichiers à Soumettre :**
+Pour les identifiants, on pourra utiliser le dictionnaire suivant:
 
-1. `main.py` : Le script Python complet implémentant l'application FastAPI.
-2. `README.md` : Un fichier expliquant comment configurer et exécuter votre application FastAPI, y compris les dépendances nécessaires.
-3. `requirements.txt` : Un fichier listant toutes les dépendances Python nécessaires pour exécuter votre application.
-4. `tests.py` : Un script Python contenant des tests unitaires et d'intégration pour vérifier les fonctionnalités de votre application.
+```
+{
+  "alice": "wonderland",
+  "bob": "builder",
+  "clementine": "mandarine"
+}
+```
 
-**Exigences de Soumission :**
+### Endpoints
 
-- Assurez-vous que votre script suit une mise en forme correcte du code et inclut des commentaires expliquant les sections clés du code.
-- Le fichier `README.md` doit fournir des instructions claires et détaillées pour l'installation et l'exécution de l'application.
-- Le fichier `tests.py` doit contenir des tests utilisant `pytest` ou `unittest` pour valider le bon fonctionnement des endpoints de l'API, incluant des tests pour l'authentification, la récupération de questions et la création de nouvelles questions.
+#### 1. /verify
+- **Description**: Vérifie que l'API est fonctionnelle.
+- **Méthode HTTP**: GET
+- **Exemple de réponse**: `{"message": "L'API est fonctionnelle."}`
 
-**Évaluation :**
-- Votre code sera évalué en exécutant des scripts de test Python automatisés. Assurez-vous que tous les tests passent et que l'application fonctionne comme prévu.
+#### 2. /generate_quiz
+- **Description**: Génère un QCM basé sur les paramètres fournis.
+- **Méthode HTTP**: POST
+- **Payload**:
+  - `"username"`: Le nom d'utilisateur de l'utilisateur qui demande le QCM.
+  - `"password"`: Le mot de passe de l'utilisateur.
+  - `"test_type"`: Le type de test souhaité (par exemple "multiple_choice").
+  - `"categories"`: Une liste des catégories de questions souhaitées.
+  - `"number_of_questions"`: Le nombre de questions à inclure dans le QCM.
+- **Authentification**:
+  - Utilise l'authentification basique avec le nom d'utilisateur et le mot de passe fournis dans le payload.
+- **Réponse**:
+  - Une liste de questions au format JSON.
+- **Exemples de payload**:
+  ```json
+  {
+    "username": "alice",
+    "password": "wonderland",
+    "test_type": "multiple_choice",
+    "categories": ["math", "history"],
+    "number_of_questions": 10
+  }
+  ```
+- **Exemple de réponse**:
+  ```json
+  [
+    {
+      "question": "Quelle est la capitale de la France ?",
+      "subject": "geography",
+      "correct": ["Paris"],
+      "use": "multiple_choice",
+      "responseA": "Londres",
+      "responseB": "Paris",
+      "responseC": "Berlin",
+      "responseD": "Madrid"
+    },
+    {
+      "question": "Qui a peint la Joconde ?",
+      "subject": "art",
+      "correct": ["Leonardo da Vinci"],
+      "use": "multiple_choice",
+      "responseA": "Picasso",
+      "responseB": "Van Gogh",
+      "responseC": "Leonardo da Vinci",
+      "responseD": "Michel-Ange"
+    },
+    ...
+  ]
+  ```
+- **Erreurs possibles**:
+  - Si l'authentification échoue, renvoyer un code d'erreur approprié avec un message explicatif.
+  - Si les paramètres fournis sont incorrects ou si aucune question ne correspond aux critères, renvoyer un code d'erreur avec un message.
 
-Bonne chance !
+#### 3. /create_question
+- **Description**: Crée une nouvelle question par un utilisateur admin.
+- **Méthode HTTP**: POST
+- **Payload**:
+  ```json
+  {
+    "admin_username": "admin",
+    "admin_password": "4dm1N",
+    "question": "Quelle est la capitale de la France ?",
+    "subject": "geography",
+    "correct": ["Paris"],
+    "use": "multiple_choice",
+    "responseA": "Londres",
+    "responseB": "Paris",
+    "responseC": "Berlin",
+    "responseD": "Madrid"
+  }
+  ```
+- **Exemple de réponse**: `{"message": "Question créée avec succès."}`
+
+## Rendus
+Les attendus sont un ou plusieurs fichiers Python contenant le code de l'API et un fichier contenant les requêtes à effectuer pour tester l'API. On pourra aussi fournir un fichier requirements.txt listant les librairies à installer. Enfin, vous pouvez fournir un document expliquant les choix d'architecture effectués.
+
+N'oubliez pas d'uploader votre examen sous le format d'une archive zip ou tar, dans l'onglet Mes Exams, après avoir validé tous les exercices du module.
+
+Bon courage !
